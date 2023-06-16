@@ -39,20 +39,29 @@ class BookspiderSpider(scrapy.Spider):
         price = response.css('div .prices .product-price span::text').get()
         price = price.replace(" ", "")
         price = price.replace("\n", "")
+        price = price.replace("₫","")
 
         memory = response.css('div.page-body div.product-essential div.overview div.attributes ul.option-list li a label.checked-attr ::text').get()
         if memory is None:
             memory = response.css('div.page-body div.product-essential div.overview div.attributes ul.option-list li label ::text').get()
-        
+      
+        name = response.css('h1 .main-name ::text').get()
+        if 'GB' in name:
+            name = name[0: len(name)-5]
+        elif 'TB' in name:
+            name = name[0: len(name)-4]
+
         for i in range (0, c):
             color = color_list[i]    
             yield{
-                    'url': response.xpath("//html/head/link[3]").attrib['href'],
-                    'name':response.css('h1 .main-name ::text').get(),
+                    
+                    'product_name': name,
+                    'product_price': price.replace("\r", ""),
+                    'product_memory': memory,
+                    'product_color': color,
+                    'product_url': response.xpath("//html/head/link[3]").attrib['href'],
                     'img_url': response.css('div .product-essential .gallery .picture a::attr(href)').get(),
-                    'price': price.replace("\r", ""),
-                    'memory': memory,
-                    'color1': color
+
                 }
                 
 
