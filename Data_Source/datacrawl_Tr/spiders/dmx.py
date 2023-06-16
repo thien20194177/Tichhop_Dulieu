@@ -19,20 +19,16 @@ class BookspiderSpider(scrapy.Spider):
                    'https://www.dienmayxanh.com/dien-thoai-itel'
                   ]
     
-        for url in start_urls:
-            
+        for url in start_urls:            
             yield scrapy.Request(url, callback=self.parse)
     
     def parse(self, response):
         phones = response.css('.container-productbox .item .main-contain')
 
         for phone in phones:
-            
                 relative_url = phone.css('a::attr(href)').get()
                 phone_url = 'https://www.dienmayxanh.com' + relative_url 
                 yield response.follow (phone_url, callback = self.new_me_parse)     
-
-              
         
     def new_me_parse(self, response): 
         sameproduct1 = response.css('.box_main .box_right .box03')
@@ -53,7 +49,7 @@ class BookspiderSpider(scrapy.Spider):
                 same_phone_url = 'https://www.dienmayxanh.com' + same_phone[i]
                 yield response.follow (same_phone_url, callback=self.parse_phone_page)
 
-        else:
+        elif k ==2:
             samephone = sameproduct1[0]  
             #divided by memory
             same_phone = samephone.css('a ::attr(href)').extract()
@@ -62,54 +58,71 @@ class BookspiderSpider(scrapy.Spider):
                 same_phone_url = 'https://www.dienmayxanh.com' + same_phone[i]
                 yield response.follow (same_phone_url, callback=self.new_color_parse)
         
-        
     def new_color_parse(self, response): 
         
         sameproduct1 = response.css('.box_main .box_right .box03')
         k = len (sameproduct1)
-        
-        # if k == 1:
-        #     samephone = sameproduct1[0]  
-        #     #divided by color (one-option)
-        #     same_phone = samephone.css('a ::attr(href)').extract()
-        #     x = len(same_phone)
-            
-        #     for i in range (0, x):
-        #         same_phone_url = 'https://www.dienmayxanh.com' + same_phone[i]
-        #         yield response.follow (same_phone_url, callback=self.parse_phone_page)
-        samephone = sameproduct1[1] #divided by color (two-option)
-
-        same_phone = samephone.css('a ::attr(href)').extract()
-
-        x = len(same_phone)
-        for i in range (0, x):
-                if 'dienmayxanh' not in same_phone :
-                    same_phone_url = 'https://www.dienmayxanh.com' + same_phone[i]
-                else:
-                    same_phone_url = samephone[i]
+        if k == 1:
+            samephone = sameproduct1[0]  
+            #divided by memory
+            same_phone = samephone.css('a ::attr(href)').extract()
+            x = len(same_phone)
+            for i in range (0, x):
+                same_phone_url = 'https://www.dienmayxanh.com' + same_phone[i]
                 yield response.follow (same_phone_url, callback=self.parse_phone_page)
+        else: 
+            samephone = sameproduct1[1] #divided by color (two-option)
+            same_phone = samephone.css('a ::attr(href)').extract()
+            x = len(same_phone)
+
+            for i in range (0, x):
+                    if 'dienmayxanh' not in same_phone :
+                        same_phone_url = 'https://www.dienmayxanh.com' + same_phone[i]
+                    else:
+                        same_phone_url = samephone[i]
+                    yield response.follow (same_phone_url, callback=self.parse_phone_page)
        
         
     def parse_phone_page(self,response):  
 
-        a = response.xpath("///html/body/section[1]/div[3]/div[2]/div/div/div/p[@class='box-price-present']/text()").get()  
-                                       
+        a = response.xpath("///html/body/section[1]/div[3]/div[2]/div/div/div/p[@class='box-price-present']/text()").get()
+        if a is None:
+            a = response.xpath("/html/body/section[1]/div[3]/div[2]/div[3]/div[2]/div/p/text()").get()                                
         b = response.xpath("//section[1]/div[3]/div[2]/div/div[@class='box03 color group desk']/a[@class='box03__item item act']/text()").get()
         if b is None:
             b = response.xpath("///html/body/section[1]/div[3]/div[1]/div[1]/div[2]/div/div[@id='thumb-color-images-gallery-17']/p/text()").get()
+
         c = (len(response.xpath("/html/body/section[1]/div[3]/div[2]/div[@class='parameter']/ul/li")))
         if c >= 9:
             c = response.xpath("/html/body/section[1]/div[3]/div[2]/div[@class='parameter']/ul/li[7]/div/span/text()").get()
         else: 
             c =response.xpath("/html/body/section[1]/div[3]/div[2]/div[@class='parameter']/ul/li[4]/div/span/text()").get()
+        if 'TB' in c:
+            c = '1024GB'
+        
+        x = len( response.xpath("/html/body/section[1]/div[3]/div[2]/div[@class='parameter']/ul/li"))
+       
+        ov = " "
+        for i in range (1, x+1):
+            y = response.xpath("/html/body/section[1]/div[3]/div[2]/div[@class='parameter']/ul/li[{0}]/p//text()".format(str(i))).extract() + response.xpath("/html/body/section[1]/div[3]/div[2]/div[@class='parameter']/ul/li[{0}]/div/span//text()".format(str(i))).extract()
+            z = len(y)
+            
+            p = y[0] + " " + y[1]
+            if z > 2:
+                for j in range (2, z,1 ):
+                    p = p + ", " + y[j]
+            
+            ov += "//" + p
+        
         yield{
-            'url': response.xpath("///html/head/link[1]").attrib['href'],
-            'name = ':response.xpath("//section[1]/h1/text()").get(),
-            'img_url =': response.xpath("//section[1]/div[3]/div[1]/div[1]/div[1]/div/div[1]/a/img").attrib['src'],
-            'price =': a,
-            'memory =': c,
-            'color': b, 
-           
+            'product_name':response.xpath("//section[1]/h1/text()").get(),
+            'product_price': a.replace("₫ ",""),
+            'product_memory': c,
+            'product_color': b, 
+            'product_overview': ov.replace("\"", ""),
+            'produc_url': response.xpath("///html/head/link[1]").attrib['href'],            
+            'img_url': response.xpath("//section[1]/div[3]/div[1]/div[1]/div[1]/div/div[1]/a/img").attrib['src'],
+
         }
                 
 
